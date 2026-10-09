@@ -1,4 +1,3 @@
-
 """Order checkout.
 
 The rules live in `src/shop/specs/checkout.md` - read it first.
@@ -18,6 +17,41 @@ TIER_DISCOUNTS = ((10, 5), (25, 10), (50, 15))
 REQUIRED_LINE_KEYS = ("sku", "qty", "unit_price_kopecks")
 
 
+def _validate_line(line: dict[str, str], index: int) -> str | None:
+    """Validate a single order line. Return an error message or None."""
+    for key in REQUIRED_LINE_KEYS:
+        if key not in line:
+            return f"line {index}: missing key {key}"
+
+    if not line["sku"]:
+        return f"line {index}: sku is empty"
+
+    try:
+        qty = int(line["qty"])
+    except (ValueError, TypeError):
+        return f"line {index}: qty is not a number"
+    if qty <= 0:
+        return f"line {index}: qty must be positive"
+
+    try:
+        price = int(line["unit_price_kopecks"])
+    except (ValueError, TypeError):
+        return f"line {index}: price is not a number"
+    if price < 0:
+        return f"line {index}: price must be non-negative"
+
+    return None
+
+
+def _validate_promo_and_city(promo_code: str, shipping_city: str) -> str | None:
+    """Validate promo code and shipping city. Return an error message or None."""
+    if promo_code and promo_code not in PROMO_CODES:
+        return f"unknown promo code: {promo_code}"
+    if shipping_city and shipping_city not in SUPPORTED_CITIES:
+        return f"unsupported city: {shipping_city}"
+    return None
+
+
 def validate_order(
     lines: list[dict[str, str]],
     promo_code: str = "",
@@ -29,36 +63,15 @@ def validate_order(
 
     seen_skus: set[str] = set()
     for index, line in enumerate(lines, start=1):
-        for key in REQUIRED_LINE_KEYS:
-            if key not in line:
-                return f"line {index}: missing key {key}"
-
+        error = _validate_line(line, index)
+        if error is not None:
+            return error
         sku = line["sku"]
-        if not sku:
-            return f"line {index}: sku is empty"
         if sku in seen_skus:
             return f"line {index}: duplicate sku {sku}"
         seen_skus.add(sku)
 
-        try:
-            qty = int(line["qty"])
-        except (ValueError, TypeError):
-            return f"line {index}: qty is not a number"
-        if qty <= 0:
-            return f"line {index}: qty must be positive"
-
-        try:
-            price = int(line["unit_price_kopecks"])
-        except (ValueError, TypeError):
-            return f"line {index}: price is not a number"
-        if price < 0:
-            return f"line {index}: price must be non-negative"
-
-    if promo_code and promo_code not in PROMO_CODES:
-        return f"unknown promo code: {promo_code}"
-    if shipping_city and shipping_city not in SUPPORTED_CITIES:
-        return f"unsupported city: {shipping_city}"
-    return None
+    return _validate_promo_and_city(promo_code, shipping_city)
 
 
 def calculate_order_total(
