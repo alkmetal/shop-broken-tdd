@@ -19,9 +19,7 @@ def build_stock_report(
         unit_price = prices.get(sku, 0)
         value = count * unit_price
         total_value += value
-        lines.append(
-            f"{sku}: {count} x {format_kopecks(unit_price)} = {format_kopecks(value)}"
-        )
+        lines.append(f"{sku}: {count} x {format_kopecks(unit_price)} = {format_kopecks(value)}")
     low = low_stock_items(stock, threshold)
     low_text = ", ".join(low) if low else "none"
     lines.append(f"low stock: {low_text}")
